@@ -46,6 +46,20 @@
             color: white;
             border-color: #3b82f6;
         }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
@@ -53,7 +67,7 @@
         <!-- Start Card -->
         <div id="start-card" class="bg-white p-8 rounded-xl shadow-lg text-center">
             <h1 class="text-3xl font-bold text-gray-800 mb-2">日语水平快速测试</h1>
-            <p class="text-gray-600 mb-6">从历年真题题库中随机抽题，快速了解您当前的日语能力水平 (JLPT N5-N1)。</p>
+            <p class="text-gray-600 mb-6">从在线题库中随机抽题，快速了解您当前的日语能力水平 (JLPT N5-N1)。</p>
             
             <div class="mb-8">
                 <p class="font-bold text-gray-700 mb-3">请选择题数：</p>
@@ -68,6 +82,11 @@
             <button id="start-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105">
                 开始测试
             </button>
+            <div id="loading-container" class="hidden mt-4">
+                <div class="loading-spinner"></div>
+                <p class="text-gray-600">正在从在线题库加载题目...</p>
+            </div>
+            <p id="error-message" class="text-red-500 mt-4 hidden"></p>
         </div>
 
         <!-- Quiz Card -->
@@ -116,6 +135,8 @@
         const nextBtn = document.getElementById('next-btn');
         const restartBtn = document.getElementById('restart-btn');
         const numOptionsContainer = document.getElementById('num-options');
+        const loadingContainer = document.getElementById('loading-container');
+        const errorMessageEl = document.getElementById('error-message');
 
         const questionNumberEl = document.getElementById('question-number');
         const totalQuestionsEl = document.getElementById('total-questions');
@@ -129,132 +150,12 @@
         const levelBadgeEl = document.getElementById('level-badge');
         const levelDescriptionEl = document.getElementById('level-description');
 
-        // 扩充并打乱答案顺序后的题库
-        const questionBank = {
-            n5: [
-                { question: "わたしは きのう としょかん（　　）いきました。", options: ["を", "に", "で", "と"], answer: "に" }, // B
-                { question: "これは（　　）の ほんですか。", options: ["なに", "どこ", "だれ", "いつ"], answer: "だれ" }, // C
-                { question: "へやに つくえ（　　）いすがあります。", options: ["を", "が", "や", "も"], answer: "や" }, // C
-                { question: "あしたは あめが（　　）でしょう。", options: ["ふり", "ふって", "ふります", "ふる"], answer: "ふる" }, // D
-                { question: "「日」は なんと よみますか。", options: ["ひ", "つき", "き", "め"], answer: "ひ" }, // A
-                { question: "この りんごは とても（　　）です。", options: ["あか", "あかく", "あかくて", "あかい"], answer: "あかい" }, // D
-                { question: "すみません、みずを いっぱい（　　）。", options: ["します", "あります", "ください", "です"], answer: "ください" }, // C
-                { question: "きょうは なん（　　）ですか。…げつようびです。", options: ["じ", "ようび", "にち", "がつ"], answer: "ようび" }, // B
-                { question: "わたしは まいあさ コーヒー（　　）のみます。", options: ["だけ", "でも", "しか", "ごろ"], answer: "しか" }, // C
-                { question: "かれは せが（　　）です。", options: ["ながい", "たかい", "おおきい", "ひろい"], answer: "たかい" }, // B
-                { question: "つくえの うえに ねこが（　　）。", options: ["あります", "します", "です", "います"], answer: "います" }, // D
-                { question: "きのうは あまり（　　）。", options: ["さむくなかったです", "さむいです", "さむくないです", "さむかったです"], answer: "さむくなかったです" }, // A
-                { question: "このバスは えきに（　　）か。", options: ["いきます", "とまります", "はいります", "きます"], answer: "とまります" }, // B
-                { question: "わたしは えいがを みるのが（　　）です。", options: ["すき", "じょうず", "きれい", "げんき"], answer: "すき" }, // A
-                { question: "（　　）くにから きましたか。", options: ["どこ", "どれ", "どんな", "どの"], answer: "どの" }, // D
-                { question: "ゆっくり（　　）ください。", options: ["はなして", "はなすて", "はなしって", "はなして"], answer: "はなして" }, // A or D, let's pick A
-                { question: "あそこは（　　）な レストランです。", options: ["しずくて", "しずかい", "しずか", "しずく"], answer: "しずか" }, // C
-                { question: "わたしは ともだちに はなを（　　）。", options: ["もらいました", "くれました", "かいました", "あげました"], answer: "あげました" }, // D
-                { question: "「女」と「子」で「女の子」、（　　）ですか。", options: ["かきかた", "よみかた", "つくりかた", "いきかた"], answer: "よみかた" }, // B
-                { question: "らいしゅう きょうとへ（　　）つもりです。", options: ["いって", "いった", "いこう", "いく"], answer: "いく" }, // D
-            ],
-            n4: [
-                { question: "先生は 学生に もっと 勉強（　　）と 言いました。", options: ["する", "しろ", "しなさい", "してください"], answer: "しなさい" }, // C
-                { question: "電話を（　　）、友だちが 来ました。", options: ["かけているあいだに", "かけているうちに", "かけていると", "かけていたら"], answer: "かけていたら" }, // D
-                { question: "この ボタンを（　　）と、おつりが 出ます。", options: ["おせば", "おすと", "おしたら", "おして"], answer: "おすと" }, // B
-                { question: "漢字が（　　）ように、毎日練習しています。", options: ["書く", "書ける", "書いた", "書こう"], answer: "書ける" }, // B
-                { question: "彼の話は、いつも（　　）ばかりでつまらない。", options: ["文句", "約束", "冗談", "喧嘩"], answer: "文句" }, // A
-                { question: "この仕事は、明日までに（　　）なければなりません。", options: ["終わらな", "終わらせな", "終わらなく", "終わらせなく"], answer: "終わらせな" }, // B
-                { question: "雨が（　　）そうなので、傘を持っていきましょう。", options: ["ふる", "ふって", "ふった", "ふり"], answer: "ふり" }, // D
-                { question: "かれは くるまの うんてんが（　　）。", options: ["します", "あります", "できます", "わかります"], answer: "できます" }, // C
-                { question: "このケーキは あま（　　）ので、あまり好きではありません。", options: ["すぎる", "やすい", "にくい", "なさい"], answer: "すぎる" }, // A
-                { question: "もっと（　　）話してください。よく聞こえません。", options: ["大きいこえで", "大きいなこえで", "大きなこえで", "大きくこえで"], answer: "大きなこえで" }, // C
-                { question: "この問題は（　　）ので、先生に聞きましょう。", options: ["かんたん", "べんり", "ふくざつ", "あんぜん"], answer: "ふくざつ" }, // C
-                { question: "医者に（　　）、お酒を飲んではいけないと言われた。", options: ["ついて", "たいして", "とって", "よると"], answer: "よると" }, // D
-                { question: "彼は日本語を（　　）ために、日本へ留学した。", options: ["勉強する", "勉強して", "勉強した", "勉強しよう"], answer: "勉強する" }, // A
-                { question: "すみません、この漢字の（　　）を教えてください。", options: ["書き方", "使い方", "意味", "読み方"], answer: "読み方" }, // D
-                { question: "道が（　　）いるから、遅れるかもしれません。", options: ["すいて", "あいて", "こんで", "しまって"], answer: "こんで" }, // C
-                { question: "彼は私にうそをついたに（　　）。", options: ["すぎない", "ちがいない", "ほかならない", "かまわない"], answer: "ちがいない" }, // B
-                { question: "（　　）としたら、どうしますか。", options: ["１億円あると", "１億円あれば", "もし１億円あったら", "１億円あっても"], answer: "もし１億円あったら" }, // C
-                { question: "この人形は、ボタンを押す（　　）動きます。", options: ["と", "ば", "たら", "なら"], answer: "と" }, // A
-                { question: "彼はまだ若い（　　）、しっかりしている。", options: ["ので", "から", "ても", "のに"], answer: "のに" }, // D
-                { question: "かぜを（　　）しまいました。", options: ["ふいて", "ひいて", "おして", "きいて"], answer: "ひいて" }, // B
-            ],
-            n3: [
-                { question: "夜中に地震があった（　　）、まったく気づかなかった。", options: ["ものの", "ところが", "せいで", "おかげで"], answer: "ものの" }, // A
-                { question: "彼は何度も注意されたにも（　　）、同じ間違いを繰り返した。", options: ["かぎり", "ついて", "かかわらず", "わたって"], answer: "かかわらず" }, // C
-                { question: "資料を（　　）次第、会議を始めます。", options: ["準備する", "準備した", "準備の", "準備し"], answer: "準備し" }, // D
-                { question: "彼女は日本語が上手な（　　）、英語も話せる。", options: ["わりに", "うえに", "くせに", "ために"], answer: "うえに" }, // B
-                { question: "あの政治家の発言は、国民の不安を（　　）ばかりだ。", options: ["しのぐ", "いやす", "あおる", "うらむ"], answer: "あおる" }, // C
-                { question: "予算が（　　）以上、この計画は続けられない。", options: ["限られている", "限る", "限らない", "限って"], answer: "限られている" }, // A
-                { question: "このレストランは、値段が高い（　　）、味は最高だ。", options: ["とおりに", "ままに", "ところに", "かわりに"], answer: "かわりに" }, // D
-                { question: "彼は病気（　　）で、学校を休んでいる。", options: ["がち", "ぎみ", "ずくめ", "まみれ"], answer: "ぎみ" }, // B
-                { question: "インターネットの普及（　　）、世界中の情報が手軽に手に入るようになった。", options: ["につれて", "にこたえて", "にともない", "のもとで"], answer: "にともない" }, // C
-                { question: "この件に（　　）は、部長に報告してください。", options: ["とっては", "関しては", "対しては", "よっては"], answer: "関しては" }, // B
-                { question: "田中さん（　　）、今、電話がありましたよ。", options: ["からというと", "からには", "から", "からして"], answer: "から" }, // C
-                { question: "この本は子供（　　）書かれているので、やさしい。", options: ["むけに", "むきに", "ために", "ように"], answer: "むけに" }, // A
-                { question: "彼は、私が困っているのを（　　）、助けてくれなかった。", options: ["知るうちに", "知るくせに", "知るところ", "知りながら"], answer: "知りながら" }, // D
-                { question: "この仕事、私に（　　）。", options: ["やられてください", "おやりください", "やらせてください", "やってください"], answer: "やらせてください" }, // C
-                { question: "彼は、さっきまで泣いていたかと（　　）、もう笑っている。", options: ["思うと", "思ったら", "思えば", "思うなら"], answer: "思うと" }, // A
-                { question: "このあたりは、夜に（　　）危険です。", options: ["なると", "かけて", "とっては", "かけては"], answer: "かけて" }, // B
-                { question: "彼は、金持ち（　　）、とてもけちだ。", options: ["のくせに", "のうえに", "のかわりに", "のわりに"], answer: "のわりに" }, // D
-                { question: "試験の（　　）、緊張してきた。", options: ["うちに", "あいだに", "最中に", "とたんに"], answer: "最中に" }, // C
-                { question: "母に（　　）、もっと早く起きなさいと叱られた。", options: ["よれば", "よって", "よると", "よっては"], answer: "よって" }, // B
-                { question: "あの二人は、けんかした（　　）、口もきかない。", options: ["まま", "ばかり", "きり", "ところ"], answer: "きり" }, // C
-            ],
-            n2: [
-                { question: "この問題は、解決する（　　）極めて難しい。", options: ["にしては", "には", "にかけては", "にあたっては"], answer: "には" }, // B
-                { question: "経験の有無を（　　）、やる気のある方を募集します。", options: ["問わず", "かかわらず", "よらず", "もって"], answer: "問わず" }, // A
-                { question: "有名な建築家が設計した（　　）、素晴らしいデザインの家だ。", options: ["ばかりに", "こととて", "だけあって", "ものを"], answer: "だけあって" }, // C
-                { question: "彼は、長年の努力が（　　）、ついに司法試験に合格した。", options: ["伴って", "応えて", "従って", "実って"], answer: "実って" }, // D
-                { question: "環境問題の深刻化は、我々の生活を（　　）かねない。", options: ["脅かし", "悩まし", "荒らし", "揺るがし"], answer: "脅かし" }, // A
-                { question: "大統領の来日を（　　）、警備体制が強化されている。", options: ["ふまえて", "にひかえ", "に先立ち", "をもって"], answer: "に先立ち" }, // C
-                { question: "親の期待に（　　）よう、一生懸命頑張ります。", options: ["そえる", "かなう", "こたえる", "おうじる"], answer: "こたえる" }, // C
-                { question: "彼は、試合に負けた（　　）、審判に抗議した。", options: ["あまり", "すえに", "あげく", "かぎり"], answer: "あげく" }, // C
-                { question: "この法律は、来年4月1日（　　）施行される。", options: ["からして", "をもって", "を限りに", "ときたら"], answer: "をもって" }, // B
-                { question: "彼の意見は、聞くに（　　）ものだ。", options: ["ほかならない", "すぎない", "あたらない", "たえない"], answer: "たえない" }, // D
-                { question: "この町は、昔（　　）の面影が残っている。", options: ["ながらの", "ながら", "ながらにして", "ながらも"], answer: "ながらの" }, // A
-                { question: "彼は、病気の子供の（　　）、一日中そばにいた。", options: ["ために", "あまり", "ものから", "ことだから"], answer: "あまり" }, // B
-                { question: "あのレストランは、味は（　　）、値段が高すぎる。", options: ["もちろん", "さておき", "ともかく", "ともかくとして"], answer: "ともかく" }, // C
-                { question: "この仕事は、私（　　）できないだろう。", options: ["ならではの", "はともかく", "ならいざしらず", "をおいて"], answer: "をおいて" }, // D
-                { question: "彼は、約束の時間に遅れる（　　）、連絡もしてこない。", options: "どころか", options: ["ばかりか", "どころか", "はおろか", "のみならず"], answer: "どころか" }, // B
-                { question: "彼は、一度言い出したら（　　）人だ。", options: ["きかない", "やまない", "とまらない", "きりがない"], answer: "やまない" }, // B
-                { question: "この状況では、待つ（　　）ほかない。", options: ["しか", "だけ", "のみ", "より"], answer: "より" }, // D
-                { question: "彼は、自分の失敗を棚に（　　）、他人を批判する。", options: ["あげて", "おいて", "して", "のけて"], answer: "あげて" }, // A
-                { question: "この問題は、そう簡単に解決（　　）ものではない。", options: ["できる", "しうる", "されうる", "されえる"], answer: "しうる" }, // B
-                { question: "彼は、会社の金を（　　）したとして、逮捕された。", options: ["占領", "所有", "横領", "独占"], answer: "横領" }, // C
-            ],
-            n1: [
-                { question: "彼の理論は、常識を（　　）ものだった。", options: ["凝らす", "徹する", "覆す", "施す"], answer: "覆す" }, // C
-                { question: "長年の研究の（　　）、ついに新薬の開発に成功した。", options: ["あげく", "末", "限り", "かたわら"], answer: "末" }, // B
-                { question: "この美術品は、専門家（　　）その価値は分からないだろう。", options: ["でなくては", "にして", "とあれば", "といえども"], answer: "でなくては" }, // A
-                { question: "政府の対応の遅さが、国民の怒りを買う（　　）となった。", options: ["始末", "きらい", "ゆえん", "一因"], answer: "一因" }, // D
-                { question: "あの温厚な彼が人をだます（　　）、信じがたい。", options: ["べく", "まじき", "限りだ", "とは"], answer: "とは" }, // D
-                { question: "いかなる困難に（　　）、最後までやり遂げる覚悟だ。", options: ["あっても", "あろうと", "あれば", "あるなら"], answer: "あろうと" }, // B
-                { question: "彼は大臣の地位を（　　）に、不正な利益を得ていた。", options: ["さいわい", "かこつけて", "たてに", "いいこと"], answer: "いいこと" }, // D
-                { question: "彼の演奏は、聞く者の心を（　　）。", options: ["揺さぶらずにはおかない", "揺さぶるべくもない", "揺さぶるまでもない", "揺さぶりかねない"], answer: "揺さぶらずにはおかない" }, // A
-                { question: "この計画の成功は、彼の協力（　　）考えられない。", options: ["ぬきにして", "なしでは", "なくしては", "ずくめでは"], answer: "なくしては" }, // C
-                { question: "社長の命令と（　　）、聞かないわけにはいかない。", options: ["あれば", "あっては", "あっての", "あればこそ"], answer: "あれば" }, // A
-                { question: "彼は、ただ（　　）として、その場に立ちつくしていた。", options: ["平然", "歴然", "騒然", "呆然"], answer: "呆然" }, // D
-                { question: "この法案は、多くの反対を（　　）可決された。", options: ["よそに", "ぬきに", "ものともせず", "おして"], answer: "おして" }, // D
-                { question: "彼は、そのことについては、口を（　　）語ろうとしない。", options: ["濁して", "閉ざして", "割って", "つぐんで"], answer: "つぐんで" }, // D
-                { question: "この件は、私の（　　）するところではない。", options: ["存じ", "存ぜぬ", "関知", "関与"], answer: "関知" }, // C
-                { question: "彼は、その分野の（　　）として知られている。", options: ["権威", "権力", "権限", "権勢"], answer: "権威" }, // A
-                { question: "彼の話は（　　）として、要点がはっきりしない。", options: ["的を射ない", "筋が通らない", "歯切れが悪い", "要領を得ない"], answer: "要領を得ない" }, // D
-                { question: "彼は、会社の再建に（　　）を尽くした。", options: ["努力", "協力", "尽力", "奮闘"], answer: "尽力" }, // C
-                { question: "その政治家は、国民を（　　）ような発言を繰り返した。", options: ["侮辱する", "軽蔑する", "無視する", "愚弄する"], answer: "愚弄する" }, // D
-                { question: "彼は、長年の経験に（　　）自信を持っている。", options: ["基づいた", "裏打ちされた", "根ざした", "由来した"], answer: "裏打ちされた" }, // B
-                { question: "この問題は、一朝一夕には解決（　　）。", options: ["するべくもない", "するまでもない", "しかねない", "しないだろう"], answer: "しないだろう" }, // D
-            ]
-        };
-
         let questions = [];
         let currentQuestionIndex = 0;
         let score = 0;
         let answerSelected = false;
-        let selectedNumOfQuestions = 30; // 默认题数
+        let selectedNumOfQuestions = 30;
 
-        /**
-         * 从题库中为每个级别随机抽取指定数量的题目，生成一套完整的测试题。
-         * @param {object} bank - 包含各级别题目的题库对象。
-         * @param {number} totalQuestions - 需要生成的总题数。
-         * @returns {array} - 生成的测试题数组。
-         */
         function generateTestQuestions(bank, totalQuestions) {
             const testQuestions = [];
             const levels = ['n5', 'n4', 'n3', 'n2', 'n1'];
@@ -267,21 +168,45 @@
                     testQuestions.push(...shuffled.slice(0, numPerLevel));
                 }
             });
-            // Final shuffle of all questions to mix levels
             return testQuestions.sort(() => 0.5 - Math.random());
         }
 
-        function startQuiz() {
-            questions = generateTestQuestions(questionBank, selectedNumOfQuestions);
-            
-            totalQuestionsEl.textContent = questions.length;
-            resultTotalQuestionsEl.textContent = questions.length;
+        async function startQuiz() {
+            startBtn.disabled = true;
+            loadingContainer.classList.remove('hidden');
+            errorMessageEl.classList.add('hidden');
 
-            startCard.classList.add('hidden');
-            quizCard.classList.remove('hidden');
-            currentQuestionIndex = 0;
-            score = 0;
-            showQuestion();
+            try {
+                // Fetch questions from the external JSON file
+                const response = await fetch('questions.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const questionBank = await response.json();
+
+                questions = generateTestQuestions(questionBank, selectedNumOfQuestions);
+                
+                if (questions.length < selectedNumOfQuestions) {
+                    throw new Error("在线题库题目不足，请选择更少的题数。");
+                }
+
+                totalQuestionsEl.textContent = questions.length;
+                resultTotalQuestionsEl.textContent = questions.length;
+
+                startCard.classList.add('hidden');
+                quizCard.classList.remove('hidden');
+                currentQuestionIndex = 0;
+                score = 0;
+                showQuestion();
+
+            } catch (error) {
+                console.error("Failed to load question bank:", error);
+                errorMessageEl.textContent = `加载题库失败: ${error.message} 请刷新重试。`;
+                errorMessageEl.classList.remove('hidden');
+            } finally {
+                startBtn.disabled = false;
+                loadingContainer.classList.add('hidden');
+            }
         }
 
         function showQuestion() {
@@ -296,7 +221,9 @@
             questionTextEl.textContent = question.question;
             optionsContainerEl.innerHTML = '';
             
-            question.options.forEach(option => {
+            const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
+
+            shuffledOptions.forEach(option => {
                 const button = document.createElement('button');
                 button.textContent = option;
                 button.classList.add('option-btn', 'p-4', 'border', 'border-gray-300', 'rounded-lg', 'hover:bg-blue-100', 'text-left', 'text-lg');
@@ -400,14 +327,11 @@
             startCard.classList.remove('hidden');
         }
         
-        // Event listener for number selection
         numOptionsContainer.addEventListener('click', (e) => {
             if (e.target.classList.contains('num-btn')) {
-                // Remove 'selected' class from all buttons
                 numOptionsContainer.querySelectorAll('.num-btn').forEach(btn => {
                     btn.classList.remove('selected');
                 });
-                // Add 'selected' class to the clicked button
                 e.target.classList.add('selected');
                 selectedNumOfQuestions = parseInt(e.target.dataset.num, 10);
             }
