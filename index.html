@@ -1,349 +1,149 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日语水平快速测试 (JLPT N5-N1) - 随机真题版</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Inter:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', 'Noto Sans JP', sans-serif;
-        }
-        .question-card {
-            transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
-        }
-        .option-btn {
-            transition: background-color 0.2s, color 0.2s;
-        }
-        .option-btn.selected {
-            background-color: #3b82f6; /* bg-blue-600 */
-            color: white;
-        }
-        .option-btn.correct {
-            background-color: #22c55e; /* bg-green-500 */
-            color: white;
-        }
-        .option-btn.incorrect {
-            background-color: #ef4444; /* bg-red-500 */
-            color: white;
-        }
-        #result-card .level-badge {
-             animation: fadeInScale 0.5s ease-out forwards;
-        }
-        @keyframes fadeInScale {
-            from {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-        .num-btn.selected {
-            background-color: #3b82f6;
-            color: white;
-            border-color: #3b82f6;
-        }
-        .loading-spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #3b82f6;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-        }
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JLPT N2 单词学习</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
-    <div class="w-full max-w-2xl mx-auto">
-        <!-- Start Card -->
-        <div id="start-card" class="bg-white p-8 rounded-xl shadow-lg text-center">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">日语水平快速测试</h1>
-            <p class="text-gray-600 mb-6">从在线题库中随机抽题，快速了解您当前的日语能力水平 (JLPT N5-N1)。</p>
-            
-            <div class="mb-8">
-                <p class="font-bold text-gray-700 mb-3">请选择题数：</p>
-                <div id="num-options" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <button class="num-btn p-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 transition" data-num="10">10题</button>
-                    <button class="num-btn p-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 transition selected" data-num="30">30题</button>
-                    <button class="num-btn p-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 transition" data-num="50">50题</button>
-                    <button class="num-btn p-3 border-2 border-gray-300 rounded-lg font-semibold text-gray-700 transition" data-num="100">100题</button>
-                </div>
-            </div>
-
-            <button id="start-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105">
-                开始测试
-            </button>
-            <div id="loading-container" class="hidden mt-4">
-                <div class="loading-spinner"></div>
-                <p class="text-gray-600">正在从在线题库加载题目...</p>
-            </div>
-            <p id="error-message" class="text-red-500 mt-4 hidden"></p>
-        </div>
-
-        <!-- Quiz Card -->
-        <div id="quiz-card" class="hidden bg-white p-8 rounded-xl shadow-lg">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-bold text-gray-800">问题 <span id="question-number">1</span>/<span id="total-questions">30</span></h2>
-                <div id="progress-bar" class="w-1/2 bg-gray-200 rounded-full h-2.5">
-                    <div class="bg-blue-500 h-2.5 rounded-full" style="width: 0%;"></div>
-                </div>
-            </div>
-            <div id="question-container" class="question-card">
-                <p id="question-text" class="text-2xl font-semibold text-gray-900 mb-8 leading-relaxed"></p>
-                <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Options will be dynamically inserted here -->
-                </div>
-            </div>
-            <div id="feedback" class="mt-6 text-lg font-semibold hidden"></div>
-            <button id="next-btn" class="w-full mt-8 bg-gray-300 text-gray-500 font-bold py-3 px-6 rounded-lg hidden transition">
-                下一题
-            </button>
-        </div>
-
-        <!-- Result Card -->
-        <div id="result-card" class="hidden bg-white p-8 rounded-xl shadow-lg text-center">
-            <h1 class="text-3xl font-bold text-gray-800 mb-4">测试完成！</h1>
-            <p class="text-gray-600 mb-6">您的测试结果如下：</p>
-            <div class="bg-blue-50 p-6 rounded-lg mb-6">
-                <p class="text-lg text-gray-700">您的预估日语水平是：</p>
-                <p id="level-badge" class="text-5xl font-bold text-blue-600 my-4 level-badge">N3</p>
-                <p class="text-lg text-gray-700">总分: <span id="score" class="font-bold"></span>/<span id="result-total-questions">30</span></p>
-            </div>
-            <div id="level-description" class="text-left space-y-4 text-gray-600 mb-8">
-                <!-- Level descriptions will be dynamically inserted here -->
-            </div>
-            <button id="restart-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg text-lg transition-transform transform hover:scale-105">
-                重新测试
-            </button>
-        </div>
+<body class="bg-gray-100 min-h-screen">
+  <div class="max-w-3xl mx-auto p-4">
+    <h1 class="text-3xl font-bold mb-4 text-center">JLPT N2 单词学习</h1>
+    <div class="flex justify-center space-x-4 mb-6">
+      <button id="tab-list" class="px-4 py-2 rounded bg-blue-500 text-white">单词列表</button>
+      <button id="tab-practice" class="px-4 py-2 rounded bg-gray-200 text-gray-700">练习模式</button>
     </div>
 
-    <script>
-        const startCard = document.getElementById('start-card');
-        const quizCard = document.getElementById('quiz-card');
-        const resultCard = document.getElementById('result-card');
-        const startBtn = document.getElementById('start-btn');
-        const nextBtn = document.getElementById('next-btn');
-        const restartBtn = document.getElementById('restart-btn');
-        const numOptionsContainer = document.getElementById('num-options');
-        const loadingContainer = document.getElementById('loading-container');
-        const errorMessageEl = document.getElementById('error-message');
+    <div id="list-section">
+      <table class="w-full table-auto bg-white rounded shadow">
+        <thead>
+          <tr class="bg-gray-200 text-left">
+            <th class="p-2">单词</th>
+            <th class="p-2">读音</th>
+            <th class="p-2">意思</th>
+          </tr>
+        </thead>
+        <tbody id="vocab-table"></tbody>
+      </table>
+    </div>
 
-        const questionNumberEl = document.getElementById('question-number');
-        const totalQuestionsEl = document.getElementById('total-questions');
-        const questionTextEl = document.getElementById('question-text');
-        const optionsContainerEl = document.getElementById('options-container');
-        const progressBar = document.querySelector('#progress-bar div');
-        const feedbackEl = document.getElementById('feedback');
+    <div id="practice-section" class="hidden">
+      <div id="practice-start" class="text-center">
+        <button id="start-btn" class="px-4 py-2 bg-blue-500 text-white rounded">开始练习</button>
+      </div>
+      <div id="quiz" class="hidden bg-white p-4 rounded shadow">
+        <p id="question" class="text-xl mb-4"></p>
+        <div id="options" class="space-y-2"></div>
+        <button id="next-btn" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hidden">下一题</button>
+      </div>
+      <div id="result" class="hidden text-center">
+        <p class="text-xl mb-4">得分：<span id="score"></span>/<span id="total"></span></p>
+        <button id="restart-btn" class="px-4 py-2 bg-blue-500 text-white rounded">再来一次</button>
+      </div>
+    </div>
+  </div>
 
-        const scoreEl = document.getElementById('score');
-        const resultTotalQuestionsEl = document.getElementById('result-total-questions');
-        const levelBadgeEl = document.getElementById('level-badge');
-        const levelDescriptionEl = document.getElementById('level-description');
+  <script>
+  let vocab = [];
+  let quizList = [];
+  let current = 0;
+  let score = 0;
 
-        let questions = [];
-        let currentQuestionIndex = 0;
-        let score = 0;
-        let answerSelected = false;
-        let selectedNumOfQuestions = 30;
+  async function loadVocab() {
+    const res = await fetch('n2_vocab.json');
+    vocab = await res.json();
+    const table = document.getElementById('vocab-table');
+    vocab.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="p-2 border-b">${item.word}</td><td class="p-2 border-b">${item.reading}</td><td class="p-2 border-b">${item.meaning}</td>`;
+      table.appendChild(tr);
+    });
+  }
 
-        function generateTestQuestions(bank, totalQuestions) {
-            const testQuestions = [];
-            const levels = ['n5', 'n4', 'n3', 'n2', 'n1'];
-            const numPerLevel = totalQuestions / levels.length;
-            
-            levels.forEach(level => {
-                const levelBank = bank[level];
-                if (levelBank && Array.isArray(levelBank) && levelBank.length > 0) {
-                    const shuffled = [...levelBank].sort(() => 0.5 - Math.random());
-                    testQuestions.push(...shuffled.slice(0, numPerLevel));
-                }
-            });
-            return testQuestions.sort(() => 0.5 - Math.random());
-        }
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
 
-        async function startQuiz() {
-            startBtn.disabled = true;
-            loadingContainer.classList.remove('hidden');
-            errorMessageEl.classList.add('hidden');
+  function startPractice() {
+    quizList = shuffle([...vocab]).slice(0, 10);
+    current = 0;
+    score = 0;
+    document.getElementById('practice-start').classList.add('hidden');
+    document.getElementById('result').classList.add('hidden');
+    document.getElementById('quiz').classList.remove('hidden');
+    showQuestion();
+  }
 
-            try {
-                // Fetch questions from the external JSON file
-                const response = await fetch('questions.json');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const questionBank = await response.json();
+  function showQuestion() {
+    const q = quizList[current];
+    document.getElementById('question').textContent = `「${q.meaning}」对应的单词是？`;
+    const optionsEl = document.getElementById('options');
+    optionsEl.innerHTML = '';
+    const options = [q.word];
+    while (options.length < 4 && options.length < vocab.length) {
+      const rand = vocab[Math.floor(Math.random() * vocab.length)].word;
+      if (!options.includes(rand)) options.push(rand);
+    }
+    shuffle(options).forEach(opt => {
+      const btn = document.createElement('button');
+      btn.textContent = opt;
+      btn.className = 'w-full text-left px-4 py-2 border rounded hover:bg-blue-50';
+      btn.onclick = () => selectAnswer(opt === q.word, btn);
+      optionsEl.appendChild(btn);
+    });
+    document.getElementById('next-btn').classList.add('hidden');
+  }
 
-                questions = generateTestQuestions(questionBank, selectedNumOfQuestions);
-                
-                if (questions.length < selectedNumOfQuestions) {
-                    throw new Error("在线题库题目不足，请选择更少的题数。");
-                }
+  function selectAnswer(correct, btn) {
+    if (correct) score++;
+    document.getElementById('next-btn').classList.remove('hidden');
+    Array.from(document.getElementById('options').children).forEach(b => {
+      b.disabled = true;
+      if (b.textContent === quizList[current].word) {
+        b.classList.add('bg-green-200');
+      }
+      if (b === btn && !correct) {
+        b.classList.add('bg-red-200');
+      }
+    });
+  }
 
-                totalQuestionsEl.textContent = questions.length;
-                resultTotalQuestionsEl.textContent = questions.length;
+  function nextQuestion() {
+    current++;
+    if (current < quizList.length) {
+      showQuestion();
+    } else {
+      document.getElementById('quiz').classList.add('hidden');
+      document.getElementById('result').classList.remove('hidden');
+      document.getElementById('score').textContent = score;
+      document.getElementById('total').textContent = quizList.length;
+      document.getElementById('practice-start').classList.remove('hidden');
+    }
+  }
 
-                startCard.classList.add('hidden');
-                quizCard.classList.remove('hidden');
-                currentQuestionIndex = 0;
-                score = 0;
-                showQuestion();
+  document.getElementById('tab-list').addEventListener('click', () => {
+    document.getElementById('list-section').classList.remove('hidden');
+    document.getElementById('practice-section').classList.add('hidden');
+    document.getElementById('tab-list').classList.add('bg-blue-500','text-white');
+    document.getElementById('tab-practice').classList.remove('bg-blue-500','text-white');
+    document.getElementById('tab-practice').classList.add('bg-gray-200','text-gray-700');
+  });
+  document.getElementById('tab-practice').addEventListener('click', () => {
+    document.getElementById('list-section').classList.add('hidden');
+    document.getElementById('practice-section').classList.remove('hidden');
+    document.getElementById('tab-practice').classList.add('bg-blue-500','text-white');
+    document.getElementById('tab-list').classList.remove('bg-blue-500','text-white');
+    document.getElementById('tab-list').classList.add('bg-gray-200','text-gray-700');
+  });
+  document.getElementById('start-btn').addEventListener('click', startPractice);
+  document.getElementById('next-btn').addEventListener('click', nextQuestion);
+  document.getElementById('restart-btn').addEventListener('click', startPractice);
 
-            } catch (error) {
-                console.error("Failed to load question bank:", error);
-                errorMessageEl.textContent = `加载题库失败: ${error.message} 请刷新重试。`;
-                errorMessageEl.classList.remove('hidden');
-            } finally {
-                startBtn.disabled = false;
-                loadingContainer.classList.add('hidden');
-            }
-        }
-
-        function showQuestion() {
-            answerSelected = false;
-            const question = questions[currentQuestionIndex];
-            if (!question) {
-                console.error("Question is undefined at index:", currentQuestionIndex);
-                showResult();
-                return;
-            }
-            questionNumberEl.textContent = currentQuestionIndex + 1;
-            questionTextEl.textContent = question.question;
-            optionsContainerEl.innerHTML = '';
-            
-            const shuffledOptions = [...question.options].sort(() => Math.random() - 0.5);
-
-            shuffledOptions.forEach(option => {
-                const button = document.createElement('button');
-                button.textContent = option;
-                button.classList.add('option-btn', 'p-4', 'border', 'border-gray-300', 'rounded-lg', 'hover:bg-blue-100', 'text-left', 'text-lg');
-                button.onclick = () => selectAnswer(button, option, question.answer);
-                optionsContainerEl.appendChild(button);
-            });
-
-            progressBar.style.width = `${((currentQuestionIndex) / questions.length) * 100}%`;
-            feedbackEl.classList.add('hidden');
-            nextBtn.classList.add('hidden');
-            nextBtn.classList.remove('bg-blue-500', 'hover:bg-blue-600', 'text-white');
-            nextBtn.classList.add('bg-gray-300', 'text-gray-500');
-        }
-
-        function selectAnswer(button, selectedOption, correctAnswer) {
-            if (answerSelected) return;
-            answerSelected = true;
-
-            const buttons = optionsContainerEl.querySelectorAll('.option-btn');
-            buttons.forEach(btn => {
-                btn.disabled = true;
-                if (btn.textContent === correctAnswer) {
-                    btn.classList.add('correct');
-                } else if (btn.textContent === selectedOption) {
-                    btn.classList.add('incorrect');
-                }
-            });
-
-            if (selectedOption === correctAnswer) {
-                score++;
-                feedbackEl.textContent = "正解！";
-                feedbackEl.className = 'mt-6 text-lg font-semibold text-green-600';
-            } else {
-                feedbackEl.textContent = `残念！正解は 「${correctAnswer}」 です。`;
-                feedbackEl.className = 'mt-6 text-lg font-semibold text-red-600';
-            }
-            feedbackEl.classList.remove('hidden');
-            
-            nextBtn.classList.remove('hidden');
-            nextBtn.classList.remove('bg-gray-300', 'text-gray-500');
-            nextBtn.classList.add('bg-blue-500', 'hover:bg-blue-600', 'text-white');
-            
-            if (currentQuestionIndex === questions.length - 1) {
-                nextBtn.textContent = '結果を見る';
-            } else {
-                nextBtn.textContent = '下一题';
-            }
-        }
-
-        function handleNextQuestion() {
-            currentQuestionIndex++;
-            if (currentQuestionIndex < questions.length) {
-                const container = document.getElementById('question-container');
-                container.style.opacity = '0';
-                container.style.transform = 'translateX(-20px)';
-                setTimeout(() => {
-                    showQuestion();
-                    container.style.opacity = '1';
-                    container.style.transform = 'translateX(0)';
-                }, 300);
-            } else {
-                showResult();
-            }
-        }
-        
-        function showResult() {
-            quizCard.classList.add('hidden');
-            resultCard.classList.remove('hidden');
-            
-            progressBar.style.width = '100%';
-            scoreEl.textContent = score;
-            
-            let level = '';
-            let description = '';
-            const total = questions.length;
-            const percentage = score / total;
-            
-            if (percentage <= 0.2) {
-                level = 'N5 レベル';
-                description = `<div class="p-4 bg-gray-50 rounded-lg"><h3 class="font-bold text-lg text-gray-800">N5: 入門</h3><p>基本的な日本語を理解できるレベルです。ひらがな、カタカナ、基本的な漢字を読み、簡単な会話や文章を理解できます。</p></div>`;
-            } else if (percentage <= 0.4) {
-                level = 'N4 レベル';
-                description = `<div class="p-4 bg-gray-50 rounded-lg"><h3 class="font-bold text-lg text-gray-800">N4: 初級</h3><p>基本的な日本語に加え、身近な話題についての会話を理解できるレベルです。日常生活でのコミュニケーションに大きな支障はありません。</p></div>`;
-            } else if (percentage <= 0.6) {
-                level = 'N3 レベル';
-                description = `<div class="p-4 bg-gray-50 rounded-lg"><h3 class="font-bold text-lg text-gray-800">N3: 中級</h3><p>日常的な場面で使われる日本語をある程度理解できます。自然に近いスピードの会話についていくことができ、新聞の見出しなどから情報を得られます。</p></div>`;
-            } else if (percentage <= 0.8) {
-                level = 'N2 レベル';
-                description = `<div class="p-4 bg-gray-50 rounded-lg"><h3 class="font-bold text-lg text-gray-800">N2: 中上級</h3><p>日常的な場面に加え、より幅広い場面で使われる日本語を理解できます。新聞や雑誌の記事、ニュースなどを理解し、自分の意見を述べることができます。</p></div>`;
-            } else {
-                level = 'N1 レベル';
-                description = `<div class="p-4 bg-gray-50 rounded-lg"><h3 class="font-bold text-lg text-gray-800">N1: 上級</h3><p>幅広い場面で使われる、論理的で複雑な日本語を理解できます。専門的な文章や、抽象度の高い文章を理解し、ネイティブと遜色なくコミュニケーションが取れる高度なレベルです。</p></div>`;
-            }
-
-            levelBadgeEl.textContent = level;
-            levelDescriptionEl.innerHTML = description;
-        }
-
-        function restartQuiz() {
-            resultCard.classList.add('hidden');
-            startCard.classList.remove('hidden');
-        }
-        
-        numOptionsContainer.addEventListener('click', (e) => {
-            if (e.target.classList.contains('num-btn')) {
-                numOptionsContainer.querySelectorAll('.num-btn').forEach(btn => {
-                    btn.classList.remove('selected');
-                });
-                e.target.classList.add('selected');
-                selectedNumOfQuestions = parseInt(e.target.dataset.num, 10);
-            }
-        });
-
-        startBtn.addEventListener('click', startQuiz);
-        nextBtn.addEventListener('click', () => {
-             if (answerSelected) {
-                handleNextQuestion();
-             }
-        });
-        restartBtn.addEventListener('click', restartQuiz);
-    </script>
+  loadVocab();
+  </script>
 </body>
 </html>
